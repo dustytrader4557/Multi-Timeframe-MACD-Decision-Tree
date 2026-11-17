@@ -1,0 +1,1268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>XAU/USD MTF MACD Decision Tree (25m / 5m / 1m)</title>
+  <style>
+    :root {
+      --bg: #0b0e14;
+      --panel: #131822;
+      --panel-hover: #1a2130;
+      --border: #252e40;
+      --text: #e6edf3;
+      --muted: #8b949e;
+      --accent: #f5b041;
+      --bull: #2ea043;
+      --bull-bg: rgba(46, 160, 67, 0.12);
+      --bear: #f85149;
+      --bear-bg: rgba(248, 81, 73, 0.12);
+      --warn: #d29922;
+      --warn-bg: rgba(210, 153, 34, 0.12);
+      --neutral: #58a6ff;
+      --neutral-bg: rgba(88, 166, 255, 0.12);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 980px;
+      margin: 0 auto;
+    }
+
+    header {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      padding-bottom: 18px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 20px;
+    }
+
+    .title-group h1 {
+      font-size: 1.35rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .badge-gold {
+      background: rgba(245, 176, 65, 0.15);
+      color: var(--accent);
+      border: 1px solid rgba(245, 176, 65, 0.4);
+      font-size: 0.75rem;
+      padding: 2px 8px;
+      border-radius: 6px;
+      font-weight: 600;
+    }
+
+    .subtitle {
+      color: var(--muted);
+      font-size: 0.85rem;
+      margin-top: 4px;
+    }
+
+    .controls {
+      display: flex;
+      gap: 8px;
+    }
+
+    button {
+      background: var(--panel);
+      color: var(--text);
+      border: 1px solid var(--border);
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    button:hover {
+      background: var(--panel-hover);
+      border-color: #3b4761;
+    }
+
+    button.primary {
+      background: var(--accent);
+      color: #0b0e14;
+      border-color: var(--accent);
+    }
+
+    button.primary:hover {
+      filter: brightness(1.08);
+    }
+
+    /* Breadcrumb Trail */
+    .breadcrumbs {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      padding: 10px 14px;
+      border-radius: 10px;
+      margin-bottom: 20px;
+      font-size: 0.82rem;
+    }
+
+    .crumb {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: #1c2333;
+      padding: 4px 10px;
+      border-radius: 6px;
+      color: var(--text);
+      cursor: pointer;
+      border: 1px solid transparent;
+    }
+
+    .crumb:hover {
+      border-color: var(--accent);
+    }
+
+    .crumb span.tf {
+      color: var(--accent);
+      font-weight: 700;
+    }
+
+    .crumb-sep {
+      color: var(--muted);
+    }
+
+    /* Progress Bar */
+    .progress-steps {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      margin-bottom: 22px;
+    }
+
+    .step-pill {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-size: 0.78rem;
+      color: var(--muted);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .step-pill.active {
+      border-color: var(--accent);
+      color: var(--text);
+      background: rgba(245, 176, 65, 0.08);
+    }
+
+    .step-pill.done {
+      border-color: var(--bull);
+      color: var(--bull);
+    }
+
+    /* Main Card */
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 20px;
+    }
+
+    .tf-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+
+    .tf-tag {
+      background: var(--neutral-bg);
+      color: var(--neutral);
+      border: 1px solid rgba(88, 166, 255, 0.35);
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 3px 9px;
+      border-radius: 6px;
+      text-transform: uppercase;
+    }
+
+    .question-title {
+      font-size: 1.2rem;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+
+    .question-desc {
+      color: var(--muted);
+      font-size: 0.9rem;
+      margin-bottom: 20px;
+    }
+
+    .options-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 12px;
+    }
+
+    .option-btn {
+      text-align: left;
+      background: #10151e;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      transition: all 0.15s ease;
+    }
+
+    .option-btn:hover {
+      background: #171f2e;
+      border-color: var(--accent);
+      transform: translateY(-1px);
+    }
+
+    .option-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .option-label {
+      font-weight: 700;
+      font-size: 0.95rem;
+      color: var(--text);
+    }
+
+    .pill {
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 5px;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    .pill.bull { background: var(--bull-bg); color: var(--bull); border: 1px solid rgba(46,160,67,0.3); }
+    .pill.bear { background: var(--bear-bg); color: var(--bear); border: 1px solid rgba(248,81,73,0.3); }
+    .pill.warn { background: var(--warn-bg); color: var(--warn); border: 1px solid rgba(210,153,34,0.3); }
+    .pill.neutral { background: var(--neutral-bg); color: var(--neutral); border: 1px solid rgba(88,166,255,0.3); }
+
+    .option-detail {
+      font-size: 0.83rem;
+      color: var(--muted);
+      font-weight: 400;
+    }
+
+    /* Terminal Verdict Box */
+    .verdict-box {
+      border-radius: 12px;
+      padding: 22px;
+      border: 1px solid var(--border);
+    }
+
+    .verdict-box.LONG { background: var(--bull-bg); border-color: var(--bull); }
+    .verdict-box.SHORT { background: var(--bear-bg); border-color: var(--bear); }
+    .verdict-box.WAIT { background: var(--warn-bg); border-color: var(--warn); }
+    .verdict-box.NO_TRADE { background: rgba(139, 148, 158, 0.08); border-color: #484f58; }
+
+    .verdict-header {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .verdict-title {
+      font-size: 1.35rem;
+      font-weight: 800;
+    }
+
+    .verdict-box.LONG .verdict-title { color: #3fb950; }
+    .verdict-box.SHORT .verdict-title { color: #ff7b72; }
+    .verdict-box.WAIT .verdict-title { color: #e3b341; }
+    .verdict-box.NO_TRADE .verdict-title { color: #c9d1d9; }
+
+    .grade-badge {
+      padding: 4px 12px;
+      border-radius: 999px;
+      font-size: 0.8rem;
+      font-weight: 800;
+      background: rgba(0,0,0,0.35);
+      border: 1px solid currentColor;
+    }
+
+    .verdict-summary {
+      font-size: 0.95rem;
+      margin-bottom: 18px;
+      color: var(--text);
+    }
+
+    .exec-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .exec-item {
+      background: rgba(11, 14, 20, 0.65);
+      border: 1px solid rgba(255,255,255,0.08);
+      padding: 12px;
+      border-radius: 8px;
+    }
+
+    .exec-item h4 {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 4px;
+      letter-spacing: 0.04em;
+    }
+
+    .exec-item p {
+      font-size: 0.88rem;
+      font-weight: 600;
+    }
+
+    .checklist {
+      background: rgba(11, 14, 20, 0.65);
+      border: 1px solid rgba(255,255,255,0.08);
+      padding: 14px 16px;
+      border-radius: 8px;
+    }
+
+    .checklist h4 {
+      font-size: 0.82rem;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 8px;
+    }
+
+    .checklist label {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      font-size: 0.86rem;
+      margin-bottom: 6px;
+      cursor: pointer;
+    }
+
+    .checklist input[type="checkbox"] {
+      margin-top: 4px;
+      accent-color: var(--accent);
+    }
+
+    /* Full Matrix View */
+    .matrix-table-wrap {
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.83rem;
+    }
+
+    th, td {
+      text-align: left;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    th {
+      color: var(--muted);
+      font-weight: 700;
+      background: #10151e;
+    }
+
+    tr:hover td {
+      background: rgba(255,255,255,0.02);
+    }
+
+    .hidden { display: none; }
+
+    @media (max-width: 640px) {
+      .progress-steps { grid-template-columns: repeat(2, 1fr); }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="title-group">
+        <h1>XAU/USD MACD Decision Engine <span class="badge-gold">25m / 5m / 1m (12,26,9)</span></h1>
+        <div class="subtitle">Strict Trend-Continuation &amp; Zero-Line Reset Protocol — Zero Counter-Trend Guessing</div>
+      </div>
+      <div class="controls">
+        <button id="btn-back" onclick="goBack()" disabled>&larr; Back</button>
+        <button id="btn-toggle-map" onclick="toggleMatrix()">All Scenarios Map</button>
+        <button class="primary" onclick="resetTree()">Reset</button>
+      </div>
+    </header>
+
+    <div class="progress-steps" id="progress-bar">
+      <div class="step-pill active" id="step-1"><span>1. 25m Macro Bias</span><span>Filter</span></div>
+      <div class="step-pill" id="step-2"><span>2. 5m Pullback</span><span>Setup</span></div>
+      <div class="step-pill" id="step-3"><span>3. 1m Inflection</span><span>Trigger</span></div>
+      <div class="step-pill" id="step-4"><span>4. Execution Plan</span><span>Verdict</span></div>
+    </div>
+
+    <div class="breadcrumbs" id="breadcrumbs">
+      <span class="crumb" onclick="resetTree()"><span class="tf">START</span> 25m Chart Check</span>
+    </div>
+
+    <!-- Interactive Wizard View -->
+    <div id="wizard-view"></div>
+
+    <!-- Full Matrix View -->
+    <div id="matrix-view" class="card hidden">
+      <div class="tf-header">
+        <span class="tf-tag">Complete State Matrix</span>
+      </div>
+      <h2 class="question-title">Every Possible 25m &rarr; 5m &rarr; 1m MACD Scenario</h2>
+      <p class="question-desc">Click any row to jump directly to its execution rules and risk parameters.</p>
+      <div class="matrix-table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>25m Macro State</th>
+              <th>5m Structure State</th>
+              <th>1m Trigger State</th>
+              <th>Verdict</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="matrix-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const TREE = {
+      start: {
+        step: 1,
+        tf: "25-Minute Chart (Macro Authority)",
+        title: "What is the 25m MACD (12, 26, 9) state relative to the Zero Line?",
+        desc: "The 25m chart sets absolute directional permission. Never fight a confirmed 25m trend.",
+        options: [
+          {
+            label: "Confirmed Bullish Trend",
+            badge: "BULLISH BIAS",
+            badgeType: "bull",
+            detail: "MACD line > 0.00 AND Signal line > 0.00, with MACD > Signal (green histogram).",
+            next: "m5_bull"
+          },
+          {
+            label: "Confirmed Bearish Trend",
+            badge: "BEARISH BIAS",
+            badgeType: "bear",
+            detail: "MACD line < 0.00 AND Signal line < 0.00, with MACD < Signal (red histogram).",
+            next: "m5_bear"
+          },
+          {
+            label: "25m Bullish Exhaustion / Pullback",
+            badge: "MACRO CONFLICT",
+            badgeType: "warn",
+            detail: "Lines are above 0.00, BUT MACD crossed below Signal (red histogram) or 3+ shrinking green bars.",
+            next: "m5_bull_exhaust"
+          },
+          {
+            label: "25m Bearish Exhaustion / Bounce",
+            badge: "MACRO CONFLICT",
+            badgeType: "warn",
+            detail: "Lines are below 0.00, BUT MACD crossed above Signal (green histogram) or 3+ shrinking red bars.",
+            next: "m5_bear_exhaust"
+          },
+          {
+            label: "Zero-Line Compression / Tangled",
+            badge: "CHOP / RANGE",
+            badgeType: "neutral",
+            detail: "MACD and Signal are flat, crossing back and forth across 0.00 (typical Asian dead zone).",
+            next: "end_chop_25m"
+          }
+        ]
+      },
+
+      // ================= 25m BULLISH BRANCH =================
+      m5_bull: {
+        step: 2,
+        tf: "5-Minute Chart (Momentum Reset)",
+        title: "25m is Bullish. What is the 5m MACD doing right now?",
+        desc: "We never buy an overextended 5m spike. We want a controlled pullback that respects the 5m zero line.",
+        options: [
+          {
+            label: "Healthy Pullback Above Zero (Ideal Coil)",
+            badge: "SETUP READY",
+            badgeType: "bull",
+            detail: "5m MACD crossed below Signal (red histogram), pulling back toward 0.00, while MACD holds ABOVE 0.00.",
+            next: "m1_bull_trigger"
+          },
+          {
+            label: "5m Fresh Bullish Cross Above Zero",
+            badge: "EARLY IMPULSE",
+            badgeType: "bull",
+            detail: "5m MACD just crossed back above Signal while still > 0.00 (1st or 2nd green histogram bar).",
+            next: "m1_bull_continuation"
+          },
+          {
+            label: "5m Extended Impulse (Overbought)",
+            badge: "DO NOT CHASE",
+            badgeType: "warn",
+            detail: "5m histogram has 6+ expanding green bars far above 0.00. Price is stretched.",
+            next: "end_wait_pullback_bull"
+          },
+          {
+            label: "5m Broke Below Zero Line (< 0.00)",
+            badge: "INVALIDATED",
+            badgeType: "bear",
+            detail: "5m MACD line dropped below 0.00. The pullback is too deep and threatens 25m structure.",
+            next: "end_5m_zero_break_bull"
+          }
+        ]
+      },
+
+      m1_bull_trigger: {
+        step: 3,
+        tf: "1-Minute Chart (Precision Trigger)",
+        title: "25m Bullish + 5m Coiled Above Zero. What is the 1m MACD showing?",
+        desc: "On the 1m chart, MACD is below zero from the pullback. Look for the exact moment sellers exhaust.",
+        options: [
+          {
+            label: "Bullish Divergence + Histogram Flip",
+            badge: "A+ SETUP",
+            badgeType: "bull",
+            detail: "Price makes lower/equal low, 1m MACD prints higher low, AND histogram flips green + bullish candle close.",
+            next: "end_long_aplus"
+          },
+          {
+            label: "Standard Histogram Flip + Candle Close",
+            badge: "A SETUP",
+            badgeType: "bull",
+            detail: "1m histogram flips from negative (red) to positive (green) + 1m candle closes above prior candle high.",
+            next: "end_long_standard"
+          },
+          {
+            label: "Contracting Red Bars Only (No Flip Yet)",
+            badge: "ARM TRIGGER",
+            badgeType: "warn",
+            detail: "2+ shrinking red bars on 1m, but MACD has not crossed Signal yet.",
+            next: "end_wait_1m_flip_bull"
+          },
+          {
+            label: "1m Accelerating Down (Expanding Red Bars)",
+            badge: "STAND DOWN",
+            badgeType: "bear",
+            detail: "1m red histogram bars are still growing larger. Knife is still falling.",
+            next: "end_wait_1m_knife_bull"
+          }
+        ]
+      },
+
+      m1_bull_continuation: {
+        step: 3,
+        tf: "1-Minute Chart (Micro-Pullback Check)",
+        title: "5m Just Crossed Bullish. Where is the 1m MACD?",
+        desc: "Avoid buying the exact top of the 1m wave that caused the 5m cross.",
+        options: [
+          {
+            label: "1m Micro-Dip & Re-Cross Above Zero",
+            badge: "A SETUP",
+            badgeType: "bull",
+            detail: "1m dipped briefly, held above 0.00, and printed a fresh green histogram tick.",
+            next: "end_long_micro"
+          },
+          {
+            label: "1m Already 5+ Green Bars Extended",
+            badge: "WAIT FOR DIP",
+            badgeType: "warn",
+            detail: "1m is vertically extended. Entering now forces a wide stop loss.",
+            next: "end_wait_1m_micro_bull"
+          }
+        ]
+      },
+
+      // ================= 25m BEARISH BRANCH =================
+      m5_bear: {
+        step: 2,
+        tf: "5-Minute Chart (Momentum Reset)",
+        title: "25m is Bearish. What is the 5m MACD doing right now?",
+        desc: "Never short into the bottom of a 5m waterfall. Wait for a relief rally that stalls below the 5m zero line.",
+        options: [
+          {
+            label: "Healthy Rally Below Zero (Ideal Coil)",
+            badge: "SETUP READY",
+            badgeType: "bear",
+            detail: "5m MACD crossed above Signal (green histogram), rallying toward 0.00, while MACD holds BELOW 0.00.",
+            next: "m1_bear_trigger"
+          },
+          {
+            label: "5m Fresh Bearish Cross Below Zero",
+            badge: "EARLY IMPULSE",
+            badgeType: "bear",
+            detail: "5m MACD just crossed back below Signal while still < 0.00 (1st or 2nd red histogram bar).",
+            next: "m1_bear_continuation"
+          },
+          {
+            label: "5m Extended Selloff (Oversold)",
+            badge: "DO NOT CHASE",
+            badgeType: "warn",
+            detail: "5m histogram has 6+ expanding red bars far below 0.00. Price is stretched.",
+            next: "end_wait_pullback_bear"
+          },
+          {
+            label: "5m Broke Above Zero Line (> 0.00)",
+            badge: "INVALIDATED",
+            badgeType: "bull",
+            detail: "5m MACD line broke above 0.00. The relief rally is turning into a structural reversal.",
+            next: "end_5m_zero_break_bear"
+          }
+        ]
+      },
+
+      m1_bear_trigger: {
+        step: 3,
+        tf: "1-Minute Chart (Precision Trigger)",
+        title: "25m Bearish + 5m Coiled Below Zero. What is the 1m MACD showing?",
+        desc: "On the 1m chart, MACD is above zero from the bounce. Look for buyers to stall and roll over.",
+        options: [
+          {
+            label: "Bearish Divergence + Histogram Flip",
+            badge: "A+ SETUP",
+            badgeType: "bear",
+            detail: "Price makes higher/equal high, 1m MACD prints lower high, AND histogram flips red + bearish candle close.",
+            next: "end_short_aplus"
+          },
+          {
+            label: "Standard Histogram Flip + Candle Close",
+            badge: "A SETUP",
+            badgeType: "bear",
+            detail: "1m histogram flips from positive (green) to negative (red) + 1m candle closes below prior candle low.",
+            next: "end_short_standard"
+          },
+          {
+            label: "Contracting Green Bars Only (No Flip Yet)",
+            badge: "ARM TRIGGER",
+            badgeType: "warn",
+            detail: "2+ shrinking green bars on 1m, but MACD has not crossed below Signal yet.",
+            next: "end_wait_1m_flip_bear"
+          },
+          {
+            label: "1m Accelerating Up (Expanding Green Bars)",
+            badge: "STAND DOWN",
+            badgeType: "bull",
+            detail: "1m green histogram bars are still growing larger. Squeeze is still active.",
+            next: "end_wait_1m_squeeze_bear"
+          }
+        ]
+      },
+
+      m1_bear_continuation: {
+        step: 3,
+        tf: "1-Minute Chart (Micro-Bounce Check)",
+        title: "5m Just Crossed Bearish. Where is the 1m MACD?",
+        desc: "Avoid shorting the exact bottom of the 1m drop that triggered the 5m cross.",
+        options: [
+          {
+            label: "1m Micro-Bounce & Re-Cross Below Zero",
+            badge: "A SETUP",
+            badgeType: "bear",
+            detail: "1m bounced briefly, stayed below 0.00, and printed a fresh red histogram tick.",
+            next: "end_short_micro"
+          },
+          {
+            label: "1m Already 5+ Red Bars Extended",
+            badge: "WAIT FOR BOUNCE",
+            badgeType: "warn",
+            detail: "1m is vertically extended downward. Entering now yields terrible R:R.",
+            next: "end_wait_1m_micro_bear"
+          }
+        ]
+      },
+
+      // ================= 25m EXHAUSTION / CONFLICT BRANCHES =================
+      m5_bull_exhaust: {
+        step: 2,
+        tf: "5-Minute Chart (Macro Conflict Filter)",
+        title: "25m is > 0.00, but 25m Momentum is Fading/Crossing Down. What is 5m doing?",
+        desc: "Macro conflict zone: 25m trend is mature/pulling back. Strict rule: NO counter-trend shorts.",
+        options: [
+          {
+            label: "5m is Below Zero (< 0.00) & Falling",
+            badge: "CONFLICT ZONE",
+            badgeType: "warn",
+            detail: "5m is bearish while 25m is still > 0.00. Higher timeframe and mid timeframe disagree.",
+            next: "end_conflict_bull_exhaust"
+          },
+          {
+            label: "5m Reclaimed Above Zero & Crossed Bullish",
+            badge: "RE-ALIGNMENT",
+            badgeType: "bull",
+            detail: "5m bottomed out and crossed bullish above 0.00, signaling the 25m pullback is ending.",
+            next: "end_realign_bull"
+          }
+        ]
+      },
+
+      m5_bear_exhaust: {
+        step: 2,
+        tf: "5-Minute Chart (Macro Conflict Filter)",
+        title: "25m is < 0.00, but 25m Momentum is Fading/Crossing Up. What is 5m doing?",
+        desc: "Macro conflict zone: 25m downtrend is mature/bouncing. Strict rule: NO counter-trend longs.",
+        options: [
+          {
+            label: "5m is Above Zero (> 0.00) & Rising",
+            badge: "CONFLICT ZONE",
+            badgeType: "warn",
+            detail: "5m is bullish while 25m is still < 0.00. Timeframes are fighting each other.",
+            next: "end_conflict_bear_exhaust"
+          },
+          {
+            label: "5m Rejected Below Zero & Crossed Bearish",
+            badge: "RE-ALIGNMENT",
+            badgeType: "bear",
+            detail: "5m topped out and crossed bearish below 0.00, signaling the 25m bounce is over.",
+            next: "end_realign_bear"
+          }
+        ]
+      },
+
+      // ================= TERMINAL VERDICTS =================
+      end_long_aplus: {
+        terminal: true,
+        verdictType: "LONG",
+        verdict: "EXECUTE LONG — A+ DIVERGENCE ENTRY",
+        grade: "GRADE A+ (100% Risk)",
+        summary: "Highest-probability alignment: 25m macro uptrend confirmed, 5m reset cleanly above zero, and 1m printed bullish divergence right into a positive histogram flip.",
+        sl: "1–2 pips below the 1m divergence swing low.",
+        tp1: "1.5R – 2.0R (or prior 5m swing high). Close 50% & move SL to Breakeven.",
+        tp2: "Trail below 5m structure until 5m MACD histogram prints 2 contracting green bars.",
+        size: "Full Standard Risk (1.0R).",
+        checks: [
+          "Spread on XAU/USD is normal (not during rollover or high-impact red news spike).",
+          "1m trigger candle has closed bullish (do not enter mid-candle).",
+          "Stop loss distance leaves room for normal 1m gold noise (minimum 1.5–2.5 pts)."
+        ]
+      },
+
+      end_long_standard: {
+        terminal: true,
+        verdictType: "LONG",
+        verdict: "EXECUTE LONG — STANDARD TREND CONTINUATION",
+        grade: "GRADE A (100% Risk)",
+        summary: "Clean 3-timeframe fractal alignment: 25m trending above zero, 5m coiled above zero, and 1m histogram flipped positive with bullish candle confirmation.",
+        sl: "Just below the immediate 1m pullback swing low.",
+        tp1: "1.5R – 2.0R (as 1m MACD crosses back above 0.00). Scale 50% & move SL to BE.",
+        tp2: "Hold runner until 5m MACD histogram peaks and prints 2 shrinking bars.",
+        size: "Full Standard Risk (1.0R).",
+        checks: [
+          "25m histogram is NOT printing 3+ shrinking bars.",
+          "1m candle closed firmly above the prior 1m candle's high.",
+          "At least 1.5R of clean room exists before major 25m resistance."
+        ]
+      },
+
+      end_long_micro: {
+        terminal: true,
+        verdictType: "LONG",
+        verdict: "EXECUTE LONG — MICRO-PULLBACK CONTINUATION",
+        grade: "GRADE B+ (75% Risk)",
+        summary: "5m just triggered a fresh bullish wave above zero and 1m offered a shallow continuation dip without breaking down.",
+        sl: "Below the 1m micro-dip swing low.",
+        tp1: "1.5R — take partial profits quickly as momentum waves can be shorter.",
+        tp2: "Trail behind 1m/5m higher lows until 5m histogram contracts.",
+        size: "75% Standard Risk (0.75R) due to shallower 5m reset.",
+        checks: [
+          "1m MACD remained above or right on its zero line during the micro-dip.",
+          "Entry is within the first 1–2 candles of the 1m green histogram flip."
+        ]
+      },
+
+      end_short_aplus: {
+        terminal: true,
+        verdictType: "SHORT",
+        verdict: "EXECUTE SHORT — A+ DIVERGENCE ENTRY",
+        grade: "GRADE A+ (100% Risk)",
+        summary: "Highest-probability bearish alignment: 25m macro downtrend confirmed, 5m relief rally stalled below zero, and 1m printed bearish divergence into a red histogram flip.",
+        sl: "1–2 pips above the 1m divergence swing high.",
+        tp1: "1.5R – 2.0R (or prior 5m swing low). Close 50% & move SL to Breakeven.",
+        tp2: "Trail above 5m structure until 5m MACD histogram prints 2 contracting red bars.",
+        size: "Full Standard Risk (1.0R).",
+        checks: [
+          "Spread on XAU/USD is normal (not during news spike or rollover).",
+          "1m trigger candle has closed bearish below prior candle low.",
+          "Stop loss sits cleanly above the 1m structural swing high."
+        ]
+      },
+
+      end_short_standard: {
+        terminal: true,
+        verdictType: "SHORT",
+        verdict: "EXECUTE SHORT — STANDARD TREND CONTINUATION",
+        grade: "GRADE A (100% Risk)",
+        summary: "Clean bearish alignment: 25m below zero, 5m coiled below zero, and 1m histogram flipped negative with bearish candle confirmation.",
+        sl: "Just above the immediate 1m pullback swing high.",
+        tp1: "1.5R – 2.0R (as 1m MACD crosses back below 0.00). Scale 50% & move SL to BE.",
+        tp2: "Hold runner until 5m MACD histogram bottoms and prints 2 shrinking red bars.",
+        size: "Full Standard Risk (1.0R).",
+        checks: [
+          "25m red histogram is NOT printing 3+ shrinking bars.",
+          "1m candle closed firmly below the prior 1m candle's low.",
+          "Clean liquidity path to the downside without immediate 25m support."
+        ]
+      },
+
+      end_short_micro: {
+        terminal: true,
+        verdictType: "SHORT",
+        verdict: "EXECUTE SHORT — MICRO-BOUNCE CONTINUATION",
+        grade: "GRADE B+ (75% Risk)",
+        summary: "5m just triggered a fresh bearish cross below zero and 1m gave a shallow bounce to join the impulse.",
+        sl: "Above the 1m micro-bounce swing high.",
+        tp1: "1.5R — scale out half early.",
+        tp2: "Trail above 1m/5m lower highs until 5m red histogram contracts.",
+        size: "75% Standard Risk (0.75R).",
+        checks: [
+          "1m MACD stayed below or right at 0.00 during the bounce.",
+          "Entry occurs on the 1st or 2nd red histogram bar on 1m."
+        ]
+      },
+
+      end_realign_bull: {
+        terminal: true,
+        verdictType: "WAIT",
+        verdict: "WATCHLIST — WAIT FOR 25m RE-CROSS UP",
+        grade: "PENDING CONFIRMATION",
+        summary: "5m is turning bullish again above zero, which is an early sign the 25m pullback is ending. Wait for the 25m histogram to contract/turn green, then snipe the next 1m dip.",
+        sl: "N/A — Do not enter until 25m histogram stops expanding downward.",
+        tp1: "N/A",
+        tp2: "N/A",
+        size: "0% (Wait State).",
+        checks: [
+          "Confirm 25m red histogram prints at least 2 shrinking bars.",
+          "Drop to 1m for the next shallow pullback above 0.00."
+        ]
+      },
+
+      end_realign_bear: {
+        terminal: true,
+        verdictType: "WAIT",
+        verdict: "WATCHLIST — WAIT FOR 25m RE-CROSS DOWN",
+        grade: "PENDING CONFIRMATION",
+        summary: "5m is turning bearish again below zero, signaling the 25m relief bounce is failing. Wait for 25m green histogram to shrink, then enter on the next 1m bounce.",
+        sl: "N/A — Wait for 25m momentum confirmation.",
+        tp1: "N/A",
+        tp2: "N/A",
+        size: "0% (Wait State).",
+        checks: [
+          "Confirm 25m green histogram prints at least 2 shrinking bars.",
+          "Drop to 1m for the next bounce below 0.00."
+        ]
+      },
+
+      end_wait_1m_flip_bull: {
+        terminal: true,
+        verdictType: "WAIT",
+        verdict: "HANDS ON MOUSE — WAIT FOR 1m GREEN HISTOGRAM",
+        grade: "ARMED (90% Ready)",
+        summary: "25m and 5m are aligned bullish, and 1m selling is slowing down (contracting red bars). Do not front-run the crossover—wait for the first green histogram bar + candle close.",
+        sl: "Prepare SL below current 1m swing low.",
+        tp1: "1.5R – 2.0R once triggered.",
+        tp2: "5m histogram exhaustion.",
+        size: "0% until candle close confirms.",
+        checks: [
+          "Wait for 1m candle to close with a positive (green) histogram tick.",
+          "Verify 5m MACD is still holding above 0.00 when 1m triggers."
+        ]
+      },
+
+      end_wait_1m_flip_bear: {
+        terminal: true,
+        verdictType: "WAIT",
+        verdict: "HANDS ON MOUSE — WAIT FOR 1m RED HISTOGRAM",
+        grade: "ARMED (90% Ready)",
+        summary: "25m and 5m are aligned bearish, and 1m buying is slowing down (contracting green bars). Wait for the first red histogram bar + bearish candle close.",
+        sl: "Prepare SL above current 1m swing high.",
+        tp1: "1.5R – 2.0R once triggered.",
+        tp2: "5m histogram exhaustion.",
+        size: "0% until candle close confirms.",
+        checks: [
+          "Wait for 1m candle to close with a negative (red) histogram tick.",
+          "Verify 5m MACD is still holding below 0.00 when 1m triggers."
+        ]
+      },
+
+      end_wait_pullback_bull: {
+        terminal: true,
+        verdictType: "WAIT",
+        verdict: "DO NOT CHASE — WAIT FOR 5m PULLBACK",
+        grade: "EXTENDED MOVE",
+        summary: "Both 25m and 5m are overextended upward. Entering now puts you at the exact peak right before a mean-reversion pullback.",
+        sl: "N/A",
+        tp1: "N/A",
+        tp2: "N/A",
+        size: "0% (Stand Down).",
+        checks: [
+          "Wait for 5m MACD to cross below its Signal line (red histogram).",
+          "Ensure 5m MACD stays above 0.00 during the pullback."
+        ]
+      },
+
+      end_wait_pullback_bear: {
+        terminal: true,
+        verdictType: "WAIT",
+        verdict: "DO NOT CHASE — WAIT FOR 5m BOUNCE",
+        grade: "EXTENDED MOVE",
+        summary: "Both 25m and 5m are overextended downward. Shorting here exposes you to violent XAU/USD short-covering snaps.",
+        sl: "N/A",
+        tp1: "N/A",
+        tp2: "N/A",
+        size: "0% (Stand Down).",
+        checks: [
+          "Wait for 5m MACD to cross above its Signal line (green histogram).",
+          "Ensure 5m MACD stays below 0.00 during the bounce."
+        ]
+      },
+
+      end_wait_1m_knife_bull: {
+        terminal: true,
+        verdictType: "WAIT",
+        verdict: "STAND DOWN — 1m SELLING STILL EXPANDING",
+        grade: "NO TRIGGER",
+        summary: "Even though 25m and 5m are bullish, the 1m pullback is still accelerating downward. Never catch a falling knife on gold.",
+        sl: "N/A",
+        tp1: "N/A",
+        tp2: "N/A",
+        size: "0%.",
+        checks: [
+          "Wait for 1m red histogram bars to peak and start shrinking.",
+          "Keep watching the 5m MACD line to make sure it doesn't break below 0.00."
+        ]
+      },
+
+      end_wait_1m_squeeze_bear: {
+        terminal: true,
+        verdictType: "WAIT",
+        verdict: "STAND DOWN — 1m BUYING STILL EXPANDING",
+        grade: "NO TRIGGER",
+        summary: "Even though 25m and 5m are bearish, the 1m bounce is still accelerating upward. Wait for buyers to exhaust.",
+        sl: "N/A",
+        tp1: "N/A",
+        tp2: "N/A",
+        size: "0%.",
+        checks: [
+          "Wait for 1m green histogram bars to peak and start shrinking.",
+          "Keep watching the 5m MACD line to make sure it doesn't break above 0.00."
+        ]
+      },
+
+      end_wait_1m_micro_bull: {
+        terminal: true,
+        verdictType: "WAIT",
+        verdict: "WAIT FOR 1m BREATHER",
+        grade: "STRETCHED 1m",
+        summary: "5m just crossed up, but the 1m leg that drove it is already 5+ bars deep. Wait for a 2–4 candle 1m pause/dip.",
+        sl: "N/A",
+        tp1: "N/A",
+        tp2: "N/A",
+        size: "0%.",
+        checks: [
+          "Wait for 2–3 red histogram bars on 1m followed by a green flip."
+        ]
+      },
+
+      end_wait_1m_micro_bear: {
+        terminal: true,
+        verdictType: "WAIT",
+        verdict: "WAIT FOR 1m BREATHER",
+        grade: "STRETCHED 1m",
+        summary: "5m just crossed down, but the 1m leg that drove it is already 5+ bars deep. Wait for a 2–4 candle 1m bounce.",
+        sl: "N/A",
+        tp1: "N/A",
+        tp2: "N/A",
+        size: "0%.",
+        checks: [
+          "Wait for 2–3 green histogram bars on 1m followed by a red flip."
+        ]
+      },
+
+      end_5m_zero_break_bull: {
+        terminal: true,
+        verdictType: "NO_TRADE",
+        verdict: "NO TRADE — 5m ZERO-LINE INVALIDATION",
+        grade: "SETUP BROKEN",
+        summary: "The 5m MACD broke below 0.00. This is no longer a shallow trend pullback—it is a deeper structural correction on the 25m chart.",
+        sl: "N/A",
+        tp1: "N/A",
+        tp2: "N/A",
+        size: "0% (Hard Block).",
+        checks: [
+          "Do NOT take counter-trend shorts against the 25m > 0.00 bias.",
+          "Wait for 5m MACD to cross back ABOVE 0.00 before looking for longs again."
+        ]
+      },
+
+      end_5m_zero_break_bear: {
+        terminal: true,
+        verdictType: "NO_TRADE",
+        verdict: "NO TRADE — 5m ZERO-LINE INVALIDATION",
+        grade: "SETUP BROKEN",
+        summary: "The 5m MACD broke above 0.00. The relief rally is now strong enough to threaten a 25m trend reversal.",
+        sl: "N/A",
+        tp1: "N/A",
+        tp2: "N/A",
+        size: "0% (Hard Block).",
+        checks: [
+          "Do NOT take counter-trend longs against the 25m < 0.00 bias.",
+          "Wait for 5m MACD to cross back BELOW 0.00 before looking for shorts again."
+        ]
+      },
+
+      end_conflict_bull_exhaust: {
+        terminal: true,
+        verdictType: "NO_TRADE",
+        verdict: "NO TRADE — MACRO CONFLICT ZONE",
+        grade: "TIMEFRAME DISAGREEMENT",
+        summary: "25m is > 0.00 (bullish territory) but crossing down, while 5m is < 0.00 (bearish). Trading here puts you in the middle of a timeframe tug-of-war.",
+        sl: "N/A",
+        tp1: "N/A",
+        tp2: "N/A",
+        size: "0% (Capital Preservation).",
+        checks: [
+          "Either wait for 5m to reclaim > 0.00 (bullish continuation) OR wait for 25m to cross < 0.00 (confirmed bearish reversal)."
+        ]
+      },
+
+      end_conflict_bear_exhaust: {
+        terminal: true,
+        verdictType: "NO_TRADE",
+        verdict: "NO TRADE — MACRO CONFLICT ZONE",
+        grade: "TIMEFRAME DISAGREEMENT",
+        summary: "25m is < 0.00 (bearish territory) but crossing up, while 5m is > 0.00 (bullish). High probability of whipsaws.",
+        sl: "N/A",
+        tp1: "N/A",
+        tp2: "N/A",
+        size: "0% (Capital Preservation).",
+        checks: [
+          "Either wait for 5m to drop back < 0.00 (bearish continuation) OR wait for 25m to cross > 0.00 (confirmed bullish reversal)."
+        ]
+      },
+
+      end_chop_25m: {
+        terminal: true,
+        verdictType: "NO_TRADE",
+        verdict: "NO TRADE — 25m ZERO-LINE CHOP",
+        grade: "DEAD / RANGING MARKET",
+        summary: "When the 25m MACD hugs 0.00, XAU/USD is in a tight consolidation range. MACD signals on 5m and 1m will generate repeated false breakouts.",
+        sl: "N/A",
+        tp1: "N/A",
+        tp2: "N/A",
+        size: "0% (Walk Away).",
+        checks: [
+          "Wait for London or New York session open volume to push 25m MACD cleanly away from 0.00."
+        ]
+      }
+    };
+
+    // Matrix Summary Data for Full Map View
+    const MATRIX_ROWS = [
+      { m25: "Bullish (>0, MACD>Sig)", m5: "Pullback > 0 (Red Hist)", m1: "Bullish Div + Green Flip", verdict: "LONG (A+)", type: "bull", target: "end_long_aplus" },
+      { m25: "Bullish (>0, MACD>Sig)", m5: "Pullback > 0 (Red Hist)", m1: "Green Flip + Candle Close", verdict: "LONG (A)", type: "bull", target: "end_long_standard" },
+      { m25: "Bullish (>0, MACD>Sig)", m5: "Pullback > 0 (Red Hist)", m1: "Shrinking Red Bars Only", verdict: "WAIT (Arm Trigger)", type: "warn", target: "end_wait_1m_flip_bull" },
+      { m25: "Bullish (>0, MACD>Sig)", m5: "Pullback > 0 (Red Hist)", m1: "Expanding Red Bars", verdict: "WAIT (Falling Knife)", type: "warn", target: "end_wait_1m_knife_bull" },
+      { m25: "Bullish (>0, MACD>Sig)", m5: "Fresh Cross > 0", m1: "Micro-Dip & Re-Cross", verdict: "LONG (B+)", type: "bull", target: "end_long_micro" },
+      { m25: "Bullish (>0, MACD>Sig)", m5: "Extended (6+ Green)", m1: "Any", verdict: "WAIT (Do Not Chase)", type: "warn", target: "end_wait_pullback_bull" },
+      { m25: "Bullish (>0, MACD>Sig)", m5: "Broke Below 0.00", m1: "Any", verdict: "NO TRADE (Invalidated)", type: "neutral", target: "end_5m_zero_break_bull" },
+      { m25: "Bearish (<0, MACD<Sig)", m5: "Bounce < 0 (Green Hist)", m1: "Bearish Div + Red Flip", verdict: "SHORT (A+)", type: "bear", target: "end_short_aplus" },
+      { m25: "Bearish (<0, MACD<Sig)", m5: "Bounce < 0 (Green Hist)", m1: "Red Flip + Candle Close", verdict: "SHORT (A)", type: "bear", target: "end_short_standard" },
+      { m25: "Bearish (<0, MACD<Sig)", m5: "Bounce < 0 (Green Hist)", m1: "Shrinking Green Bars Only", verdict: "WAIT (Arm Trigger)", type: "warn", target: "end_wait_1m_flip_bear" },
+      { m25: "Bearish (<0, MACD<Sig)", m5: "Bounce < 0 (Green Hist)", m1: "Expanding Green Bars", verdict: "WAIT (Squeeze Active)", type: "warn", target: "end_wait_1m_squeeze_bear" },
+      { m25: "Bearish (<0, MACD<Sig)", m5: "Fresh Cross < 0", m1: "Micro-Bounce & Re-Cross", verdict: "SHORT (B+)", type: "bear", target: "end_short_micro" },
+      { m25: "Bearish (<0, MACD<Sig)", m5: "Extended (6+ Red)", m1: "Any", verdict: "WAIT (Do Not Chase)", type: "warn", target: "end_wait_pullback_bear" },
+      { m25: "Bearish (<0, MACD<Sig)", m5: "Broke Above 0.00", m1: "Any", verdict: "NO TRADE (Invalidated)", type: "neutral", target: "end_5m_zero_break_bear" },
+      { m25: "25m > 0 Exhausting", m5: "5m < 0 Falling", m1: "Any", verdict: "NO TRADE (Conflict)", type: "neutral", target: "end_conflict_bull_exhaust" },
+      { m25: "25m < 0 Exhausting", m5: "5m > 0 Rising", m1: "Any", verdict: "NO TRADE (Conflict)", type: "neutral", target: "end_conflict_bear_exhaust" },
+      { m25: "Zero-Line Tangled (~0)", m5: "Any", m1: "Any", verdict: "NO TRADE (Chop)", type: "neutral", target: "end_chop_25m" }
+    ];
+
+    let historyStack = [{ nodeId: "start", choiceLabel: "25m Chart Check" }];
+    let matrixOpen = false;
+
+    function render() {
+      const current = historyStack[historyStack.length - 1];
+      const node = TREE[current.nodeId];
+      const wizardEl = document.getElementById("wizard-view");
+      const backBtn = document.getElementById("btn-back");
+
+      backBtn.disabled = historyStack.length <= 1;
+
+      // Update Progress Bar
+      const activeStep = node.terminal ? 4 : node.step;
+      for (let i = 1; i <= 4; i++) {
+        const pill = document.getElementById(`step-${i}`);
+        pill.classList.remove("active", "done");
+        if (i < activeStep) pill.classList.add("done");
+        if (i === activeStep) pill.classList.add("active");
+      }
+
+      // Update Breadcrumbs
+      const bcEl = document.getElementById("breadcrumbs");
+      bcEl.innerHTML = historyStack.map((item, idx) => {
+        const labelPrefix = idx === 0 ? "START" : `STEP ${idx}`;
+        const sep = idx < historyStack.length - 1 ? `<span class="crumb-sep">&rarr;</span>` : "";
+        return `<span class="crumb" onclick="jumpToHistory(${idx})"><span class="tf">${labelPrefix}</span> ${item.choiceLabel}</span>${sep}`;
+      }).join("");
+
+      if (node.terminal) {
+        wizardEl.innerHTML = `
+          <div class="verdict-box ${node.verdictType}">
+            <div class="verdict-header">
+              <div class="verdict-title">${node.verdict}</div>
+              <div class="grade-badge">${node.grade}</div>
+            </div>
+            <p class="verdict-summary">${node.summary}</p>
+            <div class="exec-grid">
+              <div class="exec-item">
+                <h4>Stop Loss (Invalidation)</h4>
+                <p>${node.sl}</p>
+              </div>
+              <div class="exec-item">
+                <h4>Take Profit 1 (Scale)</h4>
+                <p>${node.tp1}</p>
+              </div>
+              <div class="exec-item">
+                <h4>Take Profit 2 (Runner)</h4>
+                <p>${node.tp2}</p>
+              </div>
+              <div class="exec-item">
+                <h4>Position Sizing</h4>
+                <p>${node.size}</p>
+              </div>
+            </div>
+            <div class="checklist">
+              <h4>Pre-Execution Guardrails</h4>
+              ${node.checks.map(c => `
+                <label>
+                  <input type="checkbox" />
+                  <span>${c}</span>
+                </label>
+              `).join("")}
+            </div>
+          </div>
+        `;
+      } else {
+        wizardEl.innerHTML = `
+          <div class="card">
+            <div class="tf-header">
+              <span class="tf-tag">${node.tf}</span>
+            </div>
+            <h2 class="question-title">${node.title}</h2>
+            <p class="question-desc">${node.desc}</p>
+            <div class="options-grid">
+              ${node.options.map((opt, idx) => `
+                <button class="option-btn" onclick="selectOption('${opt.next}', '${opt.label.replace(/'/g, "\\'")}')">
+                  <div class="option-top">
+                    <span class="option-label">${opt.label}</span>
+                    <span class="pill ${opt.badgeType}">${opt.badge}</span>
+                  </div>
+                  <div class="option-detail">${opt.detail}</div>
+                </button>
+              `).join("")}
+            </div>
+          </div>
+        `;
+      }
+    }
+
+    function selectOption(nextId, label) {
+      if (matrixOpen) toggleMatrix();
+      historyStack.push({ nodeId: nextId, choiceLabel: label });
+      render();
+    }
+
+    function goBack() {
+      if (historyStack.length > 1) {
+        historyStack.pop();
+        render();
+      }
+    }
+
+    function jumpToHistory(index) {
+      if (matrixOpen) toggleMatrix();
+      historyStack = historyStack.slice(0, index + 1);
+      render();
+    }
+
+    function resetTree() {
+      if (matrixOpen) toggleMatrix();
+      historyStack = [{ nodeId: "start", choiceLabel: "25m Chart Check" }];
+      render();
+    }
+
+    function jumpDirect(targetId, label) {
+      matrixOpen = false;
+      document.getElementById("matrix-view").classList.add("hidden");
+      document.getElementById("wizard-view").classList.remove("hidden");
+      document.getElementById("btn-toggle-map").textContent = "All Scenarios Map";
+      historyStack = [
+        { nodeId: "start", choiceLabel: "25m Chart Check" },
+        { nodeId: targetId, choiceLabel: label }
+      ];
+      render();
+    }
+
+    function toggleMatrix() {
+      matrixOpen = !matrixOpen;
+      const matrixEl = document.getElementById("matrix-view");
+      const wizardEl = document.getElementById("wizard-view");
+      const btn = document.getElementById("btn-toggle-map");
+
+      if (matrixOpen) {
+        matrixEl.classList.remove("hidden");
+        wizardEl.classList.add("hidden");
+        btn.textContent = "Back to Wizard";
+      } else {
+        matrixEl.classList.add("hidden");
+        wizardEl.classList.remove("hidden");
+        btn.textContent = "All Scenarios Map";
+      }
+    }
+
+    function buildMatrix() {
+      const tbody = document.getElementById("matrix-body");
+      tbody.innerHTML = MATRIX_ROWS.map(row => `
+        <tr>
+          <td>${row.m25}</td>
+          <td>${row.m5}</td>
+          <td>${row.m1}</td>
+          <td><span class="pill ${row.type}">${row.verdict}</span></td>
+          <td><button onclick="jumpDirect('${row.target}', '${row.verdict}')">Inspect</button></td>
+        </tr>
+      `).join("");
+    }
+
+    buildMatrix();
+    render();
+  </script>
+</body>
+</html>
